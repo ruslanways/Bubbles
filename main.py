@@ -9,15 +9,15 @@ from pygame.mixer import pause
 import re
 import sqlite3
 
-# занулюємо необхідні для подальшої роботи параметри таймера
+# nullify some parameters needs further for timer implementation
 before_pause_time = 0
 all_pause_time=0
 
-# занулюємо очки
+# nullify points
 points = 0
 colors = ['red','orange','yellow','green','blue', 'LightSkyBlue1']
 
-# ініціалізуємо музику
+# initialising a music
 pause_music=False
 intro_music = 'sound/intro.mp3'
 win_music = 'sound/win.wav'
@@ -34,24 +34,24 @@ hit_sound = pygame.mixer.Sound("sound/hit.mp3")
 fail_hit_sound = pygame.mixer.Sound("sound/fail.mp3")
 
 
-# створюємо вікно
+# create main window - root
 root = Tk()
 
-# центруємо вікно
+# centering the root window
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 shift_x_root = int(screen_width/2 - screen_width/3)
 shift_y_root = int(screen_height/2 - screen_height/3)
 root.geometry(f'{(2*screen_width)//3}x{(2*screen_height)//3}+{shift_x_root}+{shift_y_root-30}')
-# робимо вікно незмінним
+# doing root window not resizable
 root.resizable(False, False)
 root.title("BUBBLES")
 
-# створюємо холст, на якому зможемо малювати кульки, текст та ін.
+# create a canvas where we can draw a bubbles (balls), text, frames and so on
 canv = Canvas(root, bg='LightSkyBlue1')
 canv.pack(fill=BOTH, expand=1)
 
-# додаємо малюнок-заставку
+# adding picture - splash screen
 img=PhotoImage(file="img/logo.gif")
 root.update_idletasks()
 root_width=logo_img_x = root.winfo_width()//2
@@ -59,7 +59,7 @@ root_height=root.winfo_height()//2
 logo_img_y = int(0.0625*root.winfo_height())+img.height()//2
 logo = canv.create_image(logo_img_x, logo_img_y, image=img)
 
-# занулюємо(ініціалізуємо) текстові віджети,шар, таблицю рейтингу які викор. далі
+# nullify (initialise) text widgets, first ball, score-table that we'll use further
 text_score = canv.create_text(-100,0,text='')
 pause_text_banner=canv.create_text(-100,0, text='')
 frm_score_table = Frame(root, bg="LightSkyBlue1")
@@ -68,7 +68,8 @@ ball = canv.create_oval(-100,0,0,0)
 
 def new_ball():
     """
-    функція створює випадкові кульки, а також змінює музику в залежності від рівня гри
+    the function creates random sized balls in random location,
+    changes levels - speed of balls appearance and music depends on player's points
     """
     global x,y,r,radius_ball, x_ball, y_ball, ball,color,points,level_top,level_middle,level_start,music,redius_relative
 
@@ -108,8 +109,8 @@ def new_ball():
      
 def click(event):
     """
-    функція обробляє влучання в кульку, рахує очки, та завершує гру або програшем або перемогою,
-    також функція викликає функцію створення бази даних і записує туди дані
+    the function handles hiting the ball, counts the points and finishes the game with win or lose,
+    invoke creation of database (if not exist), insert new data in it and shows score-table on the screen
     """
     global points, x_ball, text_score, timer, before_pause_time,all_pause_time,user_name, date_game, radius_ball, redius_relative
 
@@ -172,7 +173,7 @@ def click(event):
 
 def paused(*args):
     """
-    функція паузи у грі
+    game pause
     """
     global pause_text_banner, pause_music, before_pause_time
 
@@ -196,9 +197,9 @@ def paused(*args):
 
 def start_game(*args):
     """
-    функція запускає гру з першого рівня з відповідною музикою,
-    передає роботу функції new_ball(),
-    запускає обробник події - натискання ЛКМ, та Пробіл
+    starts the game with first level with apropriate music,
+    hands over job to function new_ball(),
+    runs an event handlers - left mouse button click, space key
     """
     global ball, text_score, points, start_time, logo, music, pause_text_banner,pause_music,before_pause_time, all_pause_time,user_name, frm_score_table
 
@@ -232,7 +233,7 @@ def start_game(*args):
 
 def pre_start(after_game=None):
     """
-    функція створює кнопки Старта гри та Виходу
+    create buttons Start & Quit
     """
     global btn_start, btn_quit, cnv_frm_start
 
@@ -257,7 +258,7 @@ def pre_start(after_game=None):
 
 def nick(*args):
     """
-    функція валідує введене ім'я гравця
+    validates player input nickname
     """
     global user_name
     user_name=ent_nick.get()
@@ -271,7 +272,7 @@ def nick(*args):
 
 def login():
     """
-    функція запитує імя гравця і передає на валідацію функції nick()
+    asking user to enter the nickname and hand over to function nick()
     """
     global nickname,ent_nick,b,c,id1,id2,id3, cnv_frm_login, logo_img_x, logo_img_y, img, root
     frm_login = Frame(root)
@@ -288,7 +289,8 @@ def login():
 
 def data_base():
     """
-    функція створю базу даних database.db, а також виводить у нове вікно 10 накращих результатів
+    creates database with file database.db
+    and shows score-table with best 10 results 
     """
     global frm_score_table
 
@@ -338,4 +340,3 @@ def data_base():
 login()
 
 mainloop()
-
