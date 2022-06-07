@@ -45,7 +45,7 @@ shift_y_root = int(screen_height / 2 - screen_height / 3)
 root.geometry(
     f"{(2*screen_width)//3}x{(2*screen_height)//3}+{shift_x_root}+{shift_y_root-30}"
 )
-# doing root window not resizable
+# making root window not resizable
 root.resizable(False, False)
 root.title("BUBBLES")
 
