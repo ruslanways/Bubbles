@@ -73,7 +73,7 @@ def new_ball():
     the function creates random sized balls in random location,
     changes levels - speed of balls appearance and music depends on player's points
     """
-    global x, y, r, radius_ball, x_ball, y_ball, ball, color, points, level_top, level_middle, level_start, music, redius_relative
+    global x, y, r, radius_ball, x_ball, y_ball, ball, color, points, level_top, level_middle, level_start, music, radius_relative
 
     canv.delete(ball)
 
@@ -90,7 +90,7 @@ def new_ball():
     )
     x_ball = x = randrange(r + 5, canv.winfo_width() - r - 5)
     y_ball = y = randrange(r + 5, canv.winfo_height() - r - 5)
-    redius_relative = radius_ball / (
+    radius_relative = radius_ball / (
         0.09 * canv.winfo_height() - 0.015 * canv.winfo_width()
     )
     color = choice(colors)
@@ -119,17 +119,17 @@ def click(event):
     the function handles hiting the ball, counts the points and finishes the game with win or lose,
     invoke creation of database (if not exist), insert new data in it and shows score-table on the screen
     """
-    global points, x_ball, text_score, timer, before_pause_time, all_pause_time, user_name, date_game, radius_ball, redius_relative
+    global points, x_ball, text_score, timer, before_pause_time, all_pause_time, user_name, date_game, radius_ball, radius_relative
 
     if (event.x - x_ball) ** 2 + (event.y - y_ball) ** 2 <= radius_ball**2:
         hit_sound.play()
         if color == "LightSkyBlue1":
             points -= 5
-        elif redius_relative <= 0.25:
+        elif radius_relative <= 0.25:
             points += 7
-        elif redius_relative <= 0.50:
+        elif radius_relative <= 0.50:
             points += 5
-        elif redius_relative <= 0.75:
+        elif radius_relative <= 0.75:
             points += 2
         else:
             points += 1
