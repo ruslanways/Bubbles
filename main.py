@@ -101,14 +101,14 @@ def new_ball():
             music = music_3_level
             pygame.mixer.music.load(music)
             pygame.mixer.music.play(-1, 0.0)
-        level_top = root.after(1000, new_ball)
+        level_top = root.after(650, new_ball)
 
     elif points >= 20:
         if music != music_2_level:
             music = music_2_level
             pygame.mixer.music.load(music)
             pygame.mixer.music.play(-1, 0.0)
-        level_middle = root.after(1000, new_ball)
+        level_middle = root.after(800, new_ball)
 
     else:
         level_start = root.after(1000, new_ball)
