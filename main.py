@@ -55,7 +55,7 @@ canv.pack(fill=BOTH, expand=1)
 
 # adding picture - splash screen
 img = PhotoImage(file="img/logo.gif")
-root.update_idletasks()
+canv.update_idletasks()
 root_width = logo_img_x = root.winfo_width() // 2
 root_height = root.winfo_height() // 2
 logo_img_y = int(0.0625 * root.winfo_height()) + img.height() // 2
@@ -101,27 +101,27 @@ def new_ball():
             music = music_3_level
             pygame.mixer.music.load(music)
             pygame.mixer.music.play(-1, 0.0)
-        level_top = root.after(650, new_ball)
+        level_top = canv.after(650, new_ball)
 
     elif points >= 20:
         if music != music_2_level:
             music = music_2_level
             pygame.mixer.music.load(music)
             pygame.mixer.music.play(-1, 0.0)
-        level_middle = root.after(800, new_ball)
+        level_middle = canv.after(800, new_ball)
 
     else:
-        level_start = root.after(1000, new_ball)
+        level_start = canv.after(1000, new_ball)
 
 
-def click(event):
+def click(click):
     """
     the function handles hiting the ball, counts the points and finishes the game with win or lose,
     invoke creation of database (if not exist), insert new data in it and shows score-table on the screen
     """
     global points, x_ball, text_score, timer, before_pause_time, all_pause_time, user_name, date_game, radius_ball, radius_relative
 
-    if (event.x - x_ball) ** 2 + (event.y - y_ball) ** 2 <= radius_ball**2:
+    if (click.x - x_ball) ** 2 + (click.y - y_ball) ** 2 <= radius_ball**2:
         hit_sound.play()
         if color == "LightSkyBlue1":
             points -= 5
@@ -149,7 +149,7 @@ def click(event):
         if points >= 35:
             canv.delete(text_score)
             canv.delete(ball)
-            root.after_cancel(level_top)
+            canv.after_cancel(level_top)
             pygame.mixer.music.load(win_music)
             pygame.mixer.music.play()
             finish_time = time.time()
@@ -163,6 +163,8 @@ def click(event):
             points = 0
             all_pause_time = 0
             timer = 0
+            canv.unbind("<Button-1>")
+            canv.unbind_all("<space>")
             pre_start(after_game=1)
 
     else:
@@ -170,11 +172,11 @@ def click(event):
         canv.delete(text_score)
         canv.delete(ball)
         if points >= 30:
-            root.after_cancel(level_top)
+            canv.after_cancel(level_top)
         elif points >= 20:
-            root.after_cancel(level_middle)
+            canv.after_cancel(level_middle)
         else:
-            root.after_cancel(level_start)
+            canv.after_cancel(level_start)
         pygame.mixer.music.stop()
         finish_time = time.time()
         timer = finish_time - start_time + all_pause_time
@@ -191,6 +193,8 @@ def click(event):
         points = 0
         all_pause_time = 0
         timer = 0
+        canv.unbind("<Button-1>")
+        canv.unbind_all("<space>")
         pre_start(after_game=1)
 
 
@@ -216,11 +220,11 @@ def paused(*args):
 
     canv.delete(ball)
     if points >= 30:
-        root.after_cancel(level_top)
+        canv.after_cancel(level_top)
     elif points >= 20:
-        root.after_cancel(level_middle)
+        canv.after_cancel(level_middle)
     else:
-        root.after_cancel(level_start)
+        canv.after_cancel(level_start)
 
     canv.bind_all("<space>", start_game)
 
@@ -275,8 +279,8 @@ def pre_start(after_game=None):
     global btn_start, btn_quit, cnv_frm_start
 
     root.unbind("<Return>")
-    canv.unbind("<Button-1>")
-    canv.unbind_all("<space>")
+    # canv.unbind("<Button-1>")
+    # canv.unbind_all("<space>")
 
     canv.delete(cnv_frm_login)
 
@@ -332,7 +336,7 @@ def login():
     cnv_frm_login = canv.create_window(
         logo_img_x,
         logo_img_y + img.height() // 2 + frm_login.winfo_height() / 2,
-        window=frm_login,
+        window=frm_login
     )
 
 
