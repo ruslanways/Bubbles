@@ -9,6 +9,19 @@ from pygame.mixer import pause
 import re
 import sqlite3
 
+import sys
+import os
+
+def resource_path(relative_path):
+    try:
+    # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 # nullify some parameters needs further for timer implementation
 before_pause_time = 0
 all_pause_time = 0
@@ -19,19 +32,19 @@ colors = ["red", "orange", "yellow", "green", "blue", "LightSkyBlue1"]
 
 # initialising a music
 pause_music = False
-intro_music = "sound/intro.mp3"
-win_music = "sound/win.wav"
-music_1_level = "sound/stage1.mp3"
-music_2_level = "sound/stage2.mp3"
-music_3_level = "sound/stage3.mp3"
+intro_music = resource_path("sound/intro.mp3")
+win_music = resource_path("sound/win.wav")
+music_1_level = resource_path("sound/stage1.mp3")
+music_2_level = resource_path("sound/stage2.mp3")
+music_3_level = resource_path("sound/stage3.mp3")
 music = intro_music
 
 pygame.mixer.init()
 pygame.mixer.music.load(music)
 pygame.mixer.music.play(-1, 0.0)
 
-hit_sound = pygame.mixer.Sound("sound/hit.mp3")
-fail_hit_sound = pygame.mixer.Sound("sound/fail.mp3")
+hit_sound = pygame.mixer.Sound(resource_path("sound/hit.mp3"))
+fail_hit_sound = pygame.mixer.Sound(resource_path("sound/fail.mp3"))
 
 
 # create main window - root
@@ -54,7 +67,7 @@ canv = Canvas(root, bg="LightSkyBlue1")
 canv.pack(fill=BOTH, expand=1)
 
 # adding picture - splash screen
-img = PhotoImage(file="img/logo.gif")
+img = PhotoImage(file=resource_path("img/logo.gif"))
 canv.update_idletasks()
 root_width = logo_img_x = root.winfo_width() // 2
 root_height = root.winfo_height() // 2
@@ -347,7 +360,7 @@ def data_base():
     """
     global frm_score_table
 
-    with sqlite3.connect("database.db") as db:
+    with sqlite3.connect(resource_path("database.db")) as db:
 
         cursor = db.cursor()
         query = """CREATE TABLE IF NOT EXISTS achivements(name TEXT, score INTEGER, time INTEGER, date TEXT)"""
