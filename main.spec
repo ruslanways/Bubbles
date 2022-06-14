@@ -51,6 +51,5 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='main.app',
-    icon=None,
     bundle_identifier=None,
 )
