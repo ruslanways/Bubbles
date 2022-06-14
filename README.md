@@ -16,6 +16,11 @@ For storing players scores it uses Python **sqlite3** library, that possibly alr
 ## Start the game
 To start the game you should **run the main.py script**. You can do that in your terminal (or command line shell in Windows): `python3 main.py`
 
+## Addition developer notes
+main_OOP.py is a oop-style version on main code - same functionality as main.py 
+<br/>
+In the executable folder there are executable game for Mac OS and for Windows.
+
 ## License
 MIT
 
