@@ -1,13 +1,27 @@
-from tkinter import *
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import (
+    BOTH,
+    CENTER,
+    END,
+    LEFT,
+    NE,
+    Button,
+    Canvas,
+    Entry,
+    Frame,
+    Label,
+    PhotoImage,
+    Tk,
+    mainloop,
+    ttk,
+    messagebox,
+)
 from random import randrange, choice
 import time
 import datetime
-import pygame
-from pygame.mixer import pause
 import re
 import sqlite3
+import pygame
+
 
 # image for intro logo
 LOGO_IMG = "img/logo.gif"
@@ -40,8 +54,8 @@ class MainWindow(Tk):
         self.resizable(False, False)
         self.title("BUBBLES")
 
-    def create_canv(self, bg="LightSkyBlue1"):
-        canv = MainCanvas(self, bg=bg)
+    def create_canv(self, background_color="LightSkyBlue1"):
+        canv = MainCanvas(self, bg=background_color)
         canv.pack(fill=BOTH, expand=1)
         return canv
 
@@ -73,7 +87,7 @@ class MainCanvas(Canvas):
         return self.create_text(
             self.winfo_width() / 2,
             self.winfo_height() / 2,
-            text="PAUSE",
+            text=text,
             fill="red",
             font="Arial 60",
         )
@@ -126,14 +140,11 @@ class MainCanvas(Canvas):
                 self.master.winfo_height() // 2,
                 window=frm_start,
             )
-        else:
-            return self.create_window(
-                self.master.winfo_width() // 2,
-                self.logo_img_y
-                + self.image.height() // 2
-                + frm_start.winfo_height() / 2,
-                window=frm_start,
-            )
+        return self.create_window(
+            self.master.winfo_width() // 2,
+            self.logo_img_y + self.image.height() // 2 + frm_start.winfo_height() / 2,
+            window=frm_start,
+        )
 
     def create_balls(self):
 
@@ -176,30 +187,38 @@ class DataBase:
         self.frm_score_table = None
         with sqlite3.connect("database.db") as db:
             cursor = db.cursor()
-            query = """CREATE TABLE IF NOT EXISTS achivements(name TEXT, score INTEGER, time INTEGER, date TEXT)"""
+            query = """CREATE TABLE IF NOT EXISTS achivements(
+                name TEXT, score INTEGER, time INTEGER, date TEXT)"""
             cursor.execute(query)
             db.commit()
 
-            #  allow add 100 data entry only (not allow over-increasing size of db file)
+            # Allow add 100 data entry only
+            # (not allow over-increasing size of db file).
             query = "SELECT COUNT(*) FROM achivements"
             cursor.execute(query)
             count = cursor.fetchone()[0]
             if count == 100:
-                query = "DELETE FROM achivements WHERE ROWID in(SELECT ROWID FROM achivements ORDER BY score ASC, time DESC LIMIT 1)"
+                query = """DELETE FROM achivements WHERE ROWID in(
+                    SELECT ROWID FROM achivements ORDER BY score ASC, 
+                    time DESC LIMIT 1)"""
                 cursor.execute(query)
                 db.commit()
 
     def add_data(self):
         with sqlite3.connect("database.db") as db:
             cursor = db.cursor()
-            query = f"INSERT INTO achivements (name, score, time, date) VALUES('{canv.user_name}', {root.points}, {round(timer.timer)}, '{root.date_game}')"
+            query = (
+                f"INSERT INTO achivements (name, score, time, date) VALUES("
+                f"'{canv.user_name}', {root.points}, {round(timer.timer)}, '{root.date_game}')"
+            )
             cursor.execute(query)
             db.commit()
 
     def show_tabe_score(self):
         with sqlite3.connect("database.db") as db:
             cursor = db.cursor()
-            query = "SELECT * FROM achivements ORDER BY score DESC, time ASC LIMIT 10"
+            query = """SELECT * FROM achivements ORDER BY score DESC, time ASC
+                    LIMIT 10"""
             self.frm_score_table = Frame(root, bg="LightSkyBlue1")
             self.frm_score_table.place(x=10, y=10)
             ttk.Style().configure(
@@ -296,7 +315,10 @@ def click(coord):
             timer.timer = timer.finish_time - timer.start_time + timer.all_pause_time
             messagebox.showinfo(
                 "winner",
-                f"B R A V O !!!\n{canv.user_name}\nYou win with score: {root.points}\nTime: {round(timer.timer)} sec.",
+                f"""B R A V O !!!
+                {canv.user_name}
+                You win with score: {root.points}
+                Time: {round(timer.timer)} sec.""",
             )
             # date_game = (datetime.date.today()).strftime("%b-%d-%Y")
             # data_base()
@@ -335,6 +357,7 @@ def click(coord):
 
 
 def pause(space):
+    # [space] gets from event object when pressing <space>
     pygame.mixer.music.pause()
     music.pause_music = True
     timer.before_pause_time = time.time()
@@ -347,9 +370,8 @@ def pause(space):
 
 def start_game(*args):
     # *args because it gets the event object when pressing <Return> from binding event
-    print("starting the game...")
     # pygame.mixer.music.stop()
-    if music.pause_music == True:
+    if music.pause_music is True:
         pygame.mixer.music.unpause()
         music.pause_music = False
         timer.after_pause_time = time.time()

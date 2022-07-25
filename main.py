@@ -179,7 +179,6 @@ def click(click):
             canv.unbind("<Button-1>")
             canv.unbind_all("<space>")
             pre_start(after_game=1)
-
     else:
         fail_hit_sound.play()
         canv.delete(text_score)
