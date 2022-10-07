@@ -1,6 +1,6 @@
 # BUBBLES
 
-_This is a simple **game** implemented on **Python3** demonstrating capabilities of built-in (starting with Python 3.7 ) **tkinter** library._
+_This is a simple **game** implemented on **Python3** demonstrating capabilities of built-in (Python 3.9.14 ) **tkinter** library._
 
 ![BUBBLES process](img/demo_for_readme.png)
 
