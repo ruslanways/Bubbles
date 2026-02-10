@@ -1,0 +1,15 @@
+[project]
+name = "bubbles"
+version = "0.1.0"
+description = "A simple bubble-popping game: pop bubbles for points, avoid transparent ones, win at 35 points. Built with Python and pygame."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pygame>=2.6.1",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.0",
+    "ruff>=0.15.0",
+]

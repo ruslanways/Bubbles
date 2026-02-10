@@ -1,415 +1,518 @@
-from tkinter import *
+import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from random import randrange, choice
 import time
 import datetime
-import pygame
-from pygame.mixer import pause
 import re
 import sqlite3
-
-import sys
 import os
-
-def resource_path(relative_path):
-    try:
-    # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
+from pathlib import Path
+import sys
+import pygame
 
 
-# nullify some parameters needs further for timer implementation
-before_pause_time = 0
-all_pause_time = 0
-
-# nullify points
-points = 0
-colors = ["red", "orange", "yellow", "green", "blue", "LightSkyBlue1"]
-
-# initialising a music
-pause_music = False
-intro_music = resource_path("sound/intro.mp3")
-win_music = resource_path("sound/win.wav")
-music_1_level = resource_path("sound/stage1.mp3")
-music_2_level = resource_path("sound/stage2.mp3")
-music_3_level = resource_path("sound/stage3.mp3")
-music = intro_music
-
-pygame.mixer.init()
-pygame.mixer.music.load(music)
-pygame.mixer.music.play(-1, 0.0)
-
-hit_sound = pygame.mixer.Sound(resource_path("sound/hit.mp3"))
-fail_hit_sound = pygame.mixer.Sound(resource_path("sound/fail.mp3"))
+# --- Constants ---
+APP_NAME = "bubbles"
 
 
-# create main window - root
-root = Tk()
-
-# centering the root window
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-shift_x_root = int(screen_width / 2 - screen_width / 3)
-shift_y_root = int(screen_height / 2 - screen_height / 3)
-root.geometry(
-    f"{(2*screen_width)//3}x{(2*screen_height)//3}+{shift_x_root}+{shift_y_root-30}"
-)
-# making root window not resizable
-root.resizable(False, False)
-root.title("BUBBLES")
-
-# create a canvas where we can draw a bubbles (balls), text, frames and so on
-canv = Canvas(root, bg="LightSkyBlue1")
-canv.pack(fill=BOTH, expand=1)
-
-# adding picture - splash screen
-img = PhotoImage(file=resource_path("img/logo.gif"))
-canv.update_idletasks()
-root_width = logo_img_x = root.winfo_width() // 2
-root_height = root.winfo_height() // 2
-logo_img_y = int(0.0625 * root.winfo_height()) + img.height() // 2
-logo = canv.create_image(logo_img_x, logo_img_y, image=img)
-
-# nullify (initialise) text widgets, first ball, score-table that we'll use further
-text_score = canv.create_text(-100, 0, text="")
-pause_text_banner = canv.create_text(-100, 0, text="")
-frm_score_table = Frame(root, bg="LightSkyBlue1")
-ball = canv.create_oval(-100, 0, 0, 0)
+def runtime_base_dir():
+    """Return the directory that contains packaged runtime assets."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent
 
 
-def new_ball():
-    """
-    the function creates random sized balls in random location,
-    changes levels - speed of balls appearance and music depends on player's points
-    """
-    global x, y, r, radius_ball, x_ball, y_ball, ball, color, points, level_top, level_middle, level_start, music, radius_relative
-
-    canv.delete(ball)
-
-    # x, y - coordinates of the circle center
-    # r - radius
-    # x_min = r + little_padding
-    # y_min = r + little_padding
-    # x_max = width - r - little_padding
-    # y_max = height - r - little_padding
-
-    canv.update_idletasks()
-    radius_ball = r = randrange(
-        int(0.015 * canv.winfo_width()), int(0.09 * canv.winfo_height())
-    )
-    x_ball = x = randrange(r + 5, canv.winfo_width() - r - 5)
-    y_ball = y = randrange(r + 5, canv.winfo_height() - r - 5)
-    radius_relative = radius_ball / (
-        0.09 * canv.winfo_height() - 0.015 * canv.winfo_width()
-    )
-    color = choice(colors)
-    ball = canv.create_oval(x - r, y - r, x + r, y + r, fill=color, width=0.1)
-
-    if points >= 30:
-        if music != music_3_level:
-            music = music_3_level
-            pygame.mixer.music.load(music)
-            pygame.mixer.music.play(-1, 0.0)
-        level_top = canv.after(650, new_ball)
-
-    elif points >= 20:
-        if music != music_2_level:
-            music = music_2_level
-            pygame.mixer.music.load(music)
-            pygame.mixer.music.play(-1, 0.0)
-        level_middle = canv.after(800, new_ball)
-
-    else:
-        level_start = canv.after(1000, new_ball)
+def resource_path(*parts):
+    """Build an absolute path to a bundled resource."""
+    return str(runtime_base_dir().joinpath(*parts))
 
 
-def click(click):
-    """
-    the function handles hiting the ball, counts the points and finishes the game with win or lose,
-    invoke creation of database (if not exist), insert new data in it and shows score-table on the screen
-    """
-    global points, x_ball, text_score, timer, before_pause_time, all_pause_time, user_name, date_game, radius_ball, radius_relative
-
-    if (click.x - x_ball) ** 2 + (click.y - y_ball) ** 2 <= radius_ball**2:
-        hit_sound.play()
-        if color == "LightSkyBlue1":
-            points -= 5
-        elif radius_relative <= 0.25:
-            points += 7
-        elif radius_relative <= 0.50:
-            points += 5
-        elif radius_relative <= 0.75:
-            points += 2
+def database_path():
+    """Return a writable database path for dev and bundled runs."""
+    if getattr(sys, "frozen", False):
+        if sys.platform == "win32":
+            base = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
+        elif sys.platform == "darwin":
+            base = Path.home() / "Library" / "Application Support"
         else:
-            points += 1
+            base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+        app_data_dir = base / APP_NAME
+        app_data_dir.mkdir(parents=True, exist_ok=True)
+        return app_data_dir / "database.db"
 
-        # видалення круга при кліку
-        canv.delete(text_score)
-        canv.delete(ball)
-        canv.update_idletasks()
-        text_score = canv.create_text(
-            canv.winfo_width() - 10,
-            10,
-            text=f"{user_name}\nScore: " + str(points),
-            font="Arial 20",
-            anchor=NE,
+    return Path(__file__).resolve().parent / "database.db"
+
+
+DB_FILE = database_path()
+LOGO_IMG = resource_path("img", "logo.gif")
+BG_COLOR = "LightSkyBlue1"
+COLORS_BALL = "red", "orange", "yellow", "green", "blue", BG_COLOR
+
+WIN_SCORE = 35
+LEVEL_3_THRESHOLD = 30
+LEVEL_2_THRESHOLD = 20
+LEVEL_3_DELAY_MS = 650
+LEVEL_2_DELAY_MS = 800
+LEVEL_1_DELAY_MS = 1000
+MIN_RADIUS_FACTOR = 0.015
+MAX_RADIUS_FACTOR = 0.09
+DB_MAX_ENTRIES = 100
+
+MUSIC = {
+    "intro": resource_path("sound", "intro.mp3"),
+    "stage1": resource_path("sound", "stage1.mp3"),
+    "stage2": resource_path("sound", "stage2.mp3"),
+    "stage3": resource_path("sound", "stage3.mp3"),
+    "hit": resource_path("sound", "hit.mp3"),
+    "fail": resource_path("sound", "fail.mp3"),
+    "win": resource_path("sound", "win.wav"),
+}
+
+
+class MainWindow(tk.Tk):
+    """Main application window centered on screen."""
+
+    def __init__(self):
+        super().__init__()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        shift_x = int(screen_width / 2 - screen_width / 3)
+        shift_y = int(screen_height / 2 - screen_height / 3)
+        self.geometry(
+            f"{(2 * screen_width) // 3}x{(2 * screen_height) // 3}+{shift_x}+{shift_y - 30}"
+        )
+        self.resizable(False, False)
+        self.title("BUBBLES")
+
+    def create_canv(self, background_color=BG_COLOR):
+        """Create and return the main game canvas."""
+        canv = MainCanvas(self, bg=background_color)
+        canv.pack(fill=tk.BOTH, expand=1)
+        return canv
+
+
+class MainCanvas(tk.Canvas):
+    """Game canvas that handles drawing balls, UI frames, and score text."""
+
+    def __init__(self, master, **kwargs):
+        tk.Canvas.__init__(self, master=master, **kwargs)
+        self.colors = COLORS_BALL
+        self.image = None
+        self.logo_img_y = 0
+        self.speed = LEVEL_1_DELAY_MS
+        self.frm_login_id = None
+
+    def create_text_score(self, text):
+        """Draw the score text in the top-right corner."""
+        return self.create_text(
+            self.winfo_width() - 10, 10, text=text, font="Arial 20", anchor=tk.NE
         )
 
-        if points >= 35:
-            canv.delete(text_score)
-            canv.delete(ball)
-            canv.after_cancel(level_top)
-            pygame.mixer.music.load(win_music)
-            pygame.mixer.music.play()
-            finish_time = time.time()
-            timer = finish_time - start_time + all_pause_time
-            messagebox.showinfo(
-                "winner",
-                f"B R A V O !!!\n{user_name}\nYou win with score: {points}\nTime: {round(timer)} sec.",
+    def create_logo(self, img):
+        """Load and display the splash screen logo image."""
+        self.image = tk.PhotoImage(file=img)
+        self.update_idletasks()
+        self.logo_img_y = (
+            int(0.0625 * self.master.winfo_height()) + self.image.height() // 2
+        )
+        return self.create_image(
+            self.master.winfo_width() // 2, self.logo_img_y, image=self.image
+        )
+
+    def create_pause_banner(self, text="PAUSE"):
+        """Display a large PAUSE text in the center of the canvas."""
+        return self.create_text(
+            self.winfo_width() / 2,
+            self.winfo_height() / 2,
+            text=text,
+            fill="red",
+            font="Arial 60",
+        )
+
+    def validate_nickname(self, on_success):
+        """Validate the player nickname and proceed to pre-start screen."""
+        self.user_name = self.ent_nick.get()
+        pattern = re.compile(r"[\w]{1,10}$")
+        if pattern.match(self.user_name):
+            self.master.unbind("<Return>")
+            self.delete(self.frm_login_id)
+            on_success()
+        else:
+            messagebox.showerror(
+                "login failure",
+                "Nickname must contain alphanumeric string max 10 symbols",
             )
-            date_game = (datetime.date.today()).strftime("%b-%d-%Y")
-            data_base()
-            points = 0
-            all_pause_time = 0
-            timer = 0
-            canv.unbind("<Button-1>")
-            canv.unbind_all("<space>")
-            pre_start(after_game=1)
-    else:
-        fail_hit_sound.play()
-        canv.delete(text_score)
-        canv.delete(ball)
-        if points >= 30:
-            canv.after_cancel(level_top)
-        elif points >= 20:
-            canv.after_cancel(level_middle)
-        else:
-            canv.after_cancel(level_start)
-        pygame.mixer.music.stop()
-        finish_time = time.time()
-        timer = finish_time - start_time + all_pause_time
-        canv.update_idletasks()
-        text_score = canv.create_text(
-            canv.winfo_width() - 10,
-            10,
-            text=f"{user_name}\nScore: {points}\nTime: {round(timer)} sec",
-            font="Arial 20",
-            anchor=NE,
+            self.master.focus()
+            self.ent_nick.focus()
+
+    def create_login_frame(self, on_validate):
+        """Show the nickname entry form.
+
+        on_validate is called (with no args) when the user submits a valid nickname.
+        """
+        def do_validate(*_args):
+            self.validate_nickname(on_validate)
+
+        frm_login = tk.Frame(self.master)
+        frm_login.pack()
+        tk.Label(frm_login, text="Enter your nickname:").pack(side=tk.LEFT)
+        self.ent_nick = tk.Entry(frm_login)
+        self.ent_nick.pack(side=tk.LEFT)
+        self.ent_nick.focus()
+        tk.Button(frm_login, text="Login", command=do_validate).pack(side=tk.LEFT)
+        frm_login.update_idletasks()
+        self.frm_login_id = self.create_window(
+            self.master.winfo_width() // 2,
+            self.logo_img_y + self.image.height() // 2 + frm_login.winfo_height() / 2,
+            window=frm_login,
         )
-        date_game = (datetime.date.today()).strftime("%b-%d-%Y")
-        data_base()
-        points = 0
-        all_pause_time = 0
-        timer = 0
-        canv.unbind("<Button-1>")
-        canv.unbind_all("<space>")
-        pre_start(after_game=1)
+        self.master.bind("<Return>", do_validate)
 
-
-def paused(*args):
-    """
-    game pause
-    """
-    global pause_text_banner, pause_music, before_pause_time
-
-    pause_text_banner = canv.create_text(
-        canv.winfo_width() / 2,
-        canv.winfo_height() / 2,
-        text="PAUSE",
-        fill="red",
-        font="Arial 60",
-    )
-    pygame.mixer.music.pause()
-    pause_music = True
-
-    canv.unbind("<Button-1>")
-
-    before_pause_time = time.time()
-
-    canv.delete(ball)
-    if points >= 30:
-        canv.after_cancel(level_top)
-    elif points >= 20:
-        canv.after_cancel(level_middle)
-    else:
-        canv.after_cancel(level_start)
-
-    canv.bind_all("<space>", start_game)
-
-
-def start_game(*args):
-    """
-    starts the game with first level with apropriate music,
-    hands over job to function new_ball(),
-    runs an event handlers - left mouse button click, space key
-    """
-    global ball, text_score, points, start_time, logo, music, pause_text_banner, pause_music, before_pause_time, all_pause_time, user_name, frm_score_table
-
-    root.unbind("<Return>")
-
-    if pause_music == True:
-        pygame.mixer.music.unpause()
-        pause_music = False
-        after_pause_time = time.time()
-        all_pause_time += after_pause_time - before_pause_time
-    else:
-        pygame.mixer.music.stop()
-        music = music_1_level
-        pygame.mixer.music.load(music)
-        pygame.mixer.music.play(-1, 0.0)
-        start_time = time.time()
-
-    frm_score_table.destroy()
-    canv.delete(text_score)
-    canv.delete(logo)
-    canv.delete(pause_text_banner)
-    canv.delete(cnv_frm_start)
-
-    canv.update_idletasks()
-    text_score = canv.create_text(
-        canv.winfo_width() - 10,
-        10,
-        text=f"{user_name}\nScore: " + str(points),
-        font="Arial 20",
-        anchor=NE,
-    )
-
-    new_ball()
-
-    canv.bind("<Button-1>", click)
-    canv.bind_all("<space>", paused)
-
-
-def pre_start(after_game=None):
-    """
-    create buttons Start & Quit
-    """
-    global btn_start, btn_quit, cnv_frm_start
-
-    root.unbind("<Return>")
-    # canv.unbind("<Button-1>")
-    # canv.unbind_all("<space>")
-
-    canv.delete(cnv_frm_login)
-
-    frm_start = Frame(root)
-    frm_start.pack()
-    btn_start = Button(frm_start, text="Start", command=start_game)
-    btn_start.pack(side=LEFT)
-    root.bind("<Return>", start_game)
-    btn_quit = Button(frm_start, text="Qiut", command=root.destroy)
-    btn_quit.pack(side=LEFT)
-    frm_start.update_idletasks()
-    if after_game:
-        cnv_frm_start = canv.create_window(root_width, root_height, window=frm_start)
-    else:
-        cnv_frm_start = canv.create_window(
-            logo_img_x,
-            logo_img_y + img.height() // 2 + frm_start.winfo_height() / 2,
+    def create_start_quit_frame(self, start_callback, after_game=None):
+        """Show the Start and Quit buttons."""
+        frm_start = tk.Frame(self.master)
+        frm_start.pack()
+        btn_start = tk.Button(frm_start, text="Start", command=start_callback)
+        btn_start.pack(side=tk.LEFT)
+        btn_quit = tk.Button(frm_start, text="Quit", command=self.master.destroy)
+        btn_quit.pack(side=tk.LEFT)
+        frm_start.update_idletasks()
+        self.master.bind("<Return>", start_callback)
+        if after_game:
+            return self.create_window(
+                self.master.winfo_width() // 2,
+                self.master.winfo_height() // 2,
+                window=frm_start,
+            )
+        return self.create_window(
+            self.master.winfo_width() // 2,
+            self.logo_img_y + self.image.height() // 2 + frm_start.winfo_height() / 2,
             window=frm_start,
         )
 
+    def create_ball(self, game):
+        """Create a random-sized ball at a random location and schedule the next one.
 
-def nick(*args):
-    """
-    validates player input nickname
-    """
-    global user_name
-    user_name = ent_nick.get()
-    pattern = re.compile(r"[\w]{1,10}$")
-    if not pattern.match(user_name):
-        messagebox.showerror(
-            "login failure", "Nickname must contain alphanumeric string max 10 symbols"
+        Accepts a Game instance so it can read the current points and music each tick.
+        """
+        if game.points >= LEVEL_3_THRESHOLD:
+            self.speed = LEVEL_3_DELAY_MS
+            if game.music.music != game.music.music_3_level:
+                game.music.music = game.music.music_3_level
+                pygame.mixer.music.load(game.music.music)
+                pygame.mixer.music.play(-1, 0.0)
+
+        elif game.points >= LEVEL_2_THRESHOLD:
+            self.speed = LEVEL_2_DELAY_MS
+            if game.music.music != game.music.music_2_level:
+                game.music.music = game.music.music_2_level
+                pygame.mixer.music.load(game.music.music)
+                pygame.mixer.music.play(-1, 0.0)
+
+        if hasattr(self, "ball"):
+            self.delete(self.ball)
+        self.update_idletasks()
+        self.radius_ball = r = randrange(
+            int(MIN_RADIUS_FACTOR * self.winfo_width()), int(MAX_RADIUS_FACTOR * self.winfo_height())
         )
-        canv.delete(cnv_frm_login)
-        login()
-    else:
-        pre_start()
+        self.x_ball = x = randrange(r + 5, self.winfo_width() - r - 5)
+        self.y_ball = y = randrange(r + 5, self.winfo_height() - r - 5)
+        self.radius_relative = self.radius_ball / (
+            MAX_RADIUS_FACTOR * self.winfo_height() - MIN_RADIUS_FACTOR * self.winfo_width()
+        )
+        self.ball_color = choice(self.colors)
+        self.ball = self.create_oval(
+            x - r, y - r, x + r, y + r, fill=self.ball_color, width=0.1
+        )
+        self.ball_loop = self.after(self.speed, lambda: self.create_ball(game))
 
 
-def login():
-    """
-    asking user to enter the nickname and hand over to function nick()
-    """
-    global nickname, ent_nick, b, c, id1, id2, id3, cnv_frm_login, logo_img_x, logo_img_y, img, root
-    frm_login = Frame(root)
-    frm_login.pack()
-    Label(frm_login, text="Enter your nickname:").pack(side=LEFT)
-    ent_nick = Entry(frm_login)
-    ent_nick.pack(side=LEFT)
-    ent_nick.focus()
-    Button(frm_login, text="Login", command=nick).pack(side=LEFT)
-    root.bind("<Return>", nick)
-    frm_login.update_idletasks()
-    cnv_frm_login = canv.create_window(
-        logo_img_x,
-        logo_img_y + img.height() // 2 + frm_login.winfo_height() / 2,
-        window=frm_login
-    )
+class DataBase:
+    """Handles SQLite database creation, score insertion, and leaderboard queries."""
 
-
-def data_base():
-    """
-    creates database with file database.db
-    and shows score-table with best 10 results
-    """
-    global frm_score_table
-
-    with sqlite3.connect(resource_path("database.db")) as db:
-
-        cursor = db.cursor()
-        query = """CREATE TABLE IF NOT EXISTS achivements(name TEXT, score INTEGER, time INTEGER, date TEXT)"""
-        cursor.execute(query)
-        db.commit()
-
-        #  allow add 100 data entry only (not allow over-increasing size of db file)
-        query = "SELECT COUNT(*) FROM achivements"
-        cursor.execute(query)
-        count = cursor.fetchone()[0]
-        if count == 100:
-            query = "DELETE FROM achivements WHERE ROWID in(SELECT ROWID FROM achivements ORDER BY score ASC, time DESC LIMIT 1)"
+    def __init__(self):
+        with sqlite3.connect(DB_FILE) as db:
+            cursor = db.cursor()
+            query = """CREATE TABLE IF NOT EXISTS achivements(
+                name TEXT, score INTEGER, time INTEGER, date TEXT)"""
             cursor.execute(query)
             db.commit()
 
-        query = f"INSERT INTO achivements (name, score, time, date) VALUES('{user_name}', {points}, {round(timer)}, '{date_game}')"
-        cursor.execute(query)
-        db.commit()
+            # Keep database size limited to DB_MAX_ENTRIES rows
+            query = "SELECT COUNT(*) FROM achivements"
+            cursor.execute(query)
+            count = cursor.fetchone()[0]
+            if count == DB_MAX_ENTRIES:
+                query = """DELETE FROM achivements WHERE ROWID in(
+                    SELECT ROWID FROM achivements ORDER BY score ASC,
+                    time DESC LIMIT 1)"""
+                cursor.execute(query)
+                db.commit()
 
-        query = "SELECT * FROM achivements ORDER BY score DESC, time ASC LIMIT 10"
-        frm_score_table = Frame(root, bg="LightSkyBlue1")
-        frm_score_table.place(x=10, y=10)
+    def add_data(self, name, score, time_spent, date):
+        """Insert a game result into the database."""
+        with sqlite3.connect(DB_FILE) as db:
+            cursor = db.cursor()
+            cursor.execute(
+                "INSERT INTO achivements (name, score, time, date) VALUES(?, ?, ?, ?)",
+                (name, score, round(time_spent), date),
+            )
+            db.commit()
+
+    def get_top_scores(self, limit=10):
+        """Return the top scores as a list of (name, score, time, date) tuples."""
+        with sqlite3.connect(DB_FILE) as db:
+            cursor = db.cursor()
+            cursor.execute(
+                "SELECT * FROM achivements ORDER BY score DESC, time ASC LIMIT ?",
+                (limit,),
+            )
+            return cursor.fetchall()
+
+
+class Music:
+    """Manages background music, sound effects, and pause state."""
+
+    def __init__(self):
+        self.pause_music = False
+        self.intro_music = MUSIC["intro"]
+        self.win_music = MUSIC["win"]
+        self.music_1_level = MUSIC["stage1"]
+        self.music_2_level = MUSIC["stage2"]
+        self.music_3_level = MUSIC["stage3"]
+        self.music = self.intro_music
+        pygame.mixer.init()
+        pygame.mixer.music.load(self.music)
+        pygame.mixer.music.play(-1, 0.0)
+        self.hit_sound = pygame.mixer.Sound(MUSIC["hit"])
+        self.fail_hit_sound = pygame.mixer.Sound(MUSIC["fail"])
+
+
+class Timer:
+    """Tracks game timing: start, finish, pause durations."""
+
+    def __init__(self):
+        self.timer = 0
+        self.start_time = 0
+        self.finish_time = 0
+        self.before_pause_time = 0
+        self.all_pause_time = 0
+        self.after_pause_time = 0
+
+
+class Game:
+    """Orchestrates gameplay: holds state and wires together all components."""
+
+    def __init__(self, root, canv, music, timer, db):
+        self.root = root
+        self.canv = canv
+        self.music = music
+        self.timer = timer
+        self.db = db
+        self.points = 0
+        self.date_game = datetime.date.today().strftime("%b-%d-%Y")
+        self.frm_score_table = None
+
+    # --- public entry point ---------------------------------------------------
+
+    def show_login(self):
+        """Display the login screen (logo + nickname form)."""
+        self.canv.create_login_frame(on_validate=self._on_login_success)
+
+    # --- callbacks ------------------------------------------------------------
+
+    def _on_login_success(self):
+        """Called after a valid nickname is entered."""
+        self.canv.create_start_quit_frame(start_callback=self._start_game)
+
+    def _start_game(self, *_args):
+        """Start or resume the game with appropriate music and event bindings."""
+        if self.music.pause_music:
+            pygame.mixer.music.unpause()
+            self.music.pause_music = False
+            self.timer.after_pause_time = time.time()
+            self.timer.all_pause_time += (
+                self.timer.after_pause_time - self.timer.before_pause_time
+            )
+        else:
+            self.music.music = self.music.music_1_level
+            pygame.mixer.music.load(self.music.music)
+            pygame.mixer.music.play(-1, 0.0)
+            self.timer.start_time = time.time()
+
+        self.canv.delete("all")
+        if self.frm_score_table:
+            self.frm_score_table.destroy()
+            self.frm_score_table = None
+        self.root.unbind("<Return>")
+        self.canv.create_text_score(
+            text=f"{self.canv.user_name}\nScore: {self.points}"
+        )
+        self.canv.bind("<Button-1>", self._on_click)
+        self.canv.bind_all("<space>", self._pause_game)
+        self.canv.create_ball(self)
+
+    def _pause_game(self, _event):
+        """Pause the game: stop ball spawning, show pause banner, pause music."""
+        pygame.mixer.music.pause()
+        self.music.pause_music = True
+        self.timer.before_pause_time = time.time()
+        self.canv.create_pause_banner()
+        self.canv.unbind("<Button-1>")
+        self.canv.after_cancel(self.canv.ball_loop)
+        self.canv.delete(self.canv.ball)
+        self.canv.bind_all("<space>", self._start_game)
+
+    def _on_click(self, event):
+        """Handle click on canvas: score hit/miss and end the game on miss or win."""
+        if (event.x - self.canv.x_ball) ** 2 + (
+            event.y - self.canv.y_ball
+        ) ** 2 <= self.canv.radius_ball ** 2:
+            self.music.hit_sound.play()
+            if self.canv.ball_color == BG_COLOR:
+                self.points -= 5
+            elif self.canv.radius_relative <= 0.25:
+                self.points += 7
+            elif self.canv.radius_relative <= 0.50:
+                self.points += 5
+            elif self.canv.radius_relative <= 0.75:
+                self.points += 2
+            else:
+                self.points += 1
+
+            self.canv.delete("all")
+            self.canv.update_idletasks()
+            self.canv.create_text_score(
+                text=f"{self.canv.user_name}\nScore: {self.points}"
+            )
+
+            if self.points >= WIN_SCORE:
+                pygame.mixer.music.load(self.music.win_music)
+                pygame.mixer.music.play()
+                self.timer.finish_time = time.time()
+                self.timer.timer = (
+                    self.timer.finish_time
+                    - self.timer.start_time
+                    - self.timer.all_pause_time
+                )
+                messagebox.showinfo(
+                    "winner",
+                    f"""B R A V O !!!
+                {self.canv.user_name}
+                You win with score: {self.points}
+                Time: {round(self.timer.timer)} sec.""",
+                )
+                self._end_game()
+        else:
+            self.music.fail_hit_sound.play()
+            pygame.mixer.music.stop()
+            self.timer.finish_time = time.time()
+            self.timer.timer = (
+                self.timer.finish_time
+                - self.timer.start_time
+                - self.timer.all_pause_time
+            )
+            self._end_game()
+
+    # --- helpers --------------------------------------------------------------
+
+    def _end_game(self):
+        """Shared cleanup for both win and miss game-over paths."""
+        self.canv.after_cancel(self.canv.ball_loop)
+        self.canv.delete("all")
+        self.canv.update_idletasks()
+        self.canv.create_text_score(
+            text=f"{self.canv.user_name}\nScore: {self.points}\nTime: {round(self.timer.timer)} sec."
+        )
+        self.canv.unbind("<Button-1>")
+        self.canv.unbind_all("<space>")
+        self.root.focus()
+
+        self.db.add_data(
+            self.canv.user_name,
+            self.points,
+            self.timer.timer,
+            self.date_game,
+        )
+        self._show_score_table()
+
+        self.points = 0
+        self.timer.all_pause_time = 0
+        self.timer.timer = 0
+        self.canv.speed = LEVEL_1_DELAY_MS
+        self.canv.create_start_quit_frame(
+            start_callback=self._start_game, after_game=True
+        )
+
+    def _show_score_table(self):
+        """Build and display the top-10 leaderboard Treeview."""
+        rows = self.db.get_top_scores()
+        self.frm_score_table = tk.Frame(self.root, bg=BG_COLOR)
+        self.frm_score_table.place(x=10, y=10)
         ttk.Style().configure(
             "Treeview",
-            background="LightSkyBlue1",
-            fieldbackground="LightSkyBlue1",
-            rowheight=int(0.0564 * root_height),
+            background=BG_COLOR,
+            fieldbackground=BG_COLOR,
+            rowheight=int(0.0564 * self.root.winfo_height() // 2),
         )
         columns = ("rating", "name", "score", "time", "date")
-        tree = ttk.Treeview(frm_score_table, columns=columns, show="headings")
+        tree = ttk.Treeview(self.frm_score_table, columns=columns, show="headings")
         tree.heading("rating", text="rating")
         tree.heading("name", text="nickname")
         tree.heading("score", text="score")
         tree.heading("time", text="time")
         tree.heading("date", text="date")
-        tree.column("rating", width=int(0.15 * root_width), anchor=CENTER)
-        tree.column("name", width=int(0.24 * root_width))
-        tree.column("score", width=int(0.13 * root_width), anchor=CENTER)
-        tree.column("time", width=int(0.19 * root_width), anchor=CENTER)
-        tree.column("date", width=int(0.22 * root_width), anchor=CENTER)
-        players = cursor.execute(query)
-        i = 1
-        for player in players:
+        tree.column(
+            "rating", width=int(0.15 * self.root.winfo_width() // 2), anchor=tk.CENTER
+        )
+        tree.column("name", width=int(0.24 * self.root.winfo_width() // 2))
+        tree.column(
+            "score", width=int(0.13 * self.root.winfo_width() // 2), anchor=tk.CENTER
+        )
+        tree.column(
+            "time", width=int(0.19 * self.root.winfo_width() // 2), anchor=tk.CENTER
+        )
+        tree.column(
+            "date", width=int(0.22 * self.root.winfo_width() // 2), anchor=tk.CENTER
+        )
+        for i, player in enumerate(rows, start=1):
             tree.insert(
-                "", END, values=(i, player[0], player[1], f"{player[2]} sec", player[3])
+                "",
+                tk.END,
+                values=(i, player[0], player[1], f"{player[2]} sec", player[3]),
             )
-            i += 1
-        tree.pack(side=LEFT, fill=BOTH)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH)
 
 
-login()
+# --- Bootstrap ----------------------------------------------------------------
 
-mainloop()
+def main():
+    root = MainWindow()
+
+    try:
+        music = Music()
+    except (pygame.error, FileNotFoundError) as exc:
+        messagebox.showerror("Missing audio files", f"Cannot load audio:\n{exc}")
+        root.destroy()
+        return
+
+    timer = Timer()
+    db = DataBase()
+    canv = root.create_canv()
+
+    try:
+        canv.create_logo(LOGO_IMG)
+    except tk.TclError as exc:
+        messagebox.showerror("Missing image file", f"Cannot load logo:\n{exc}")
+        root.destroy()
+        return
+
+    game = Game(root, canv, music, timer, db)
+    game.show_login()
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,11 +1,40 @@
+# Virtual environments
 /venv
 /.venv
 /env
-/.env
-database.db
-.DS_Store
+
+# Environment variables (secrets)
+.env
+.env.*
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.egg-info/
+*.egg
+
+# Build outputs
 /build
 /dist
+/executable
+
+# Database
+database.db
+
+# Tools
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE / Editor
+.claude/
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

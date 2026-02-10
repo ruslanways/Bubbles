@@ -1,6 +1,6 @@
 # BUBBLES
 
-_This is a simple **game** implemented on **Python3** demonstrating capabilities of built-in (Python 3.9.14 ) **tkinter** library._
+_This is a simple **game** implemented on **Python3** demonstrating capabilities of built-in (Python 3.12) **tkinter** library._
 
 ![BUBBLES process](img/demo_for_readme.png)
 
@@ -9,17 +9,32 @@ The goal of the game is to pop a bubbles that appear in random location. Smalles
 ***
 
 ## Technical arrangements
-To execute the game you should have installed **Python enterpreter starting version 3.7**. Also please ensure you have installed **pygame module** (install with command: `pip install pygame`). For some Linux users may be nessesary to install Tcl/Tk on your system, because some Linux distributions separate Tcl/Tk librariy from default Python. In that case you can install it by executing command in you terminal: `sudo apt install python3-tk`
-For storing players scores it uses Python **sqlite3** library, that possibly already included in your Python release. If not - please take care to install it.
+To execute the game you should have installed **Python interpreter starting version 3.12**. This project uses **[uv](https://docs.astral.sh/uv/)** for dependency management. To install dependencies run: `uv sync`. For some Linux users may be necessary to install Tcl/Tk on your system, because some Linux distributions separate Tcl/Tk library from default Python. In that case you can install it by executing command in your terminal: `sudo apt install python3-tk`
+For storing players scores it uses Python **sqlite3** library, that is already included in your Python release.
 ***
 
 ## Start the game
-To start the game you should **run the main.py script**. You can do that in your terminal (or command line shell in Windows): `python3 main.py`
+To start the game you should **run the main.py script**. You can do that in your terminal (or command line shell in Windows): `uv run main.py`
+
+## Build a single distributable executable
+PyInstaller is the simplest path for this project (Tkinter + pygame).
+
+1. Install build tooling:
+   `uv sync --group dev`
+2. Build one-file executable:
+   `uv run pyinstaller --clean --noconfirm main.spec`
+
+Build output:
+- macOS/Linux: `dist/bubbles`
+- Windows: `dist/bubbles.exe`
+
+Notes:
+- Build on each target OS (PyInstaller does not cross-compile between macOS/Windows/Linux).
+- Game assets are bundled into the executable.
+- The score database is stored in a user-writable app data directory when running bundled builds.
 
 ## Addition developer notes
-mainOOP.py is a oop-style version on main code - same functionality as main.py 
-<br/>
-In the executable folder there are executable game for Mac OS and for Windows.
+main_historic.py is the original procedural version of the game, kept for reference.
 
 ## License
 MIT
